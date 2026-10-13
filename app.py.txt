@@ -1,0 +1,150 @@
+import pandas as pd
+import streamlit as st
+
+# Cấu hình trang Streamlit
+st.set_page_config(
+    page_title="Quản Lý Điểm Sinh Viên", page_icon="🎓", layout="centered"
+)
+
+# 1. Dữ liệu mẫu gồm 10 sinh viên
+data = {
+    "MSSV": [
+        "SV001",
+        "SV002",
+        "SV003",
+        "SV004",
+        "SV005",
+        "SV006",
+        "SV007",
+        "SV008",
+        "SV009",
+        "SV010",
+    ],
+    "Họ tên": [
+        "Nguyễn Văn An",
+        "Trần Thị Bình",
+        "Lê Hoàng Cường",
+        "Phạm Thị Dung",
+        "Hoàng Văn Em",
+        "Vũ Thị Phương",
+        "Đỗ Văn Giang",
+        "Bùi Thị Hoa",
+        "Ngô Văn Hùng",
+        "Dương Thị Kim",
+    ],
+    "Chuyên cần": [9.0, 8.0, 10.0, 7.0, 8.5, 9.5, 6.0, 8.0, 7.5, 9.0],
+    "Giữa kỳ": [7.5, 8.0, 6.5, 8.5, 7.0, 9.0, 5.5, 8.0, 6.0, 7.5],
+    "Cuối kỳ": [8.0, 7.5, 8.5, 7.0, 7.5, 9.0, 6.0, 8.5, 7.0, 8.0],
+}
+
+df = pd.DataFrame(data)
+
+
+# Hàm tính điểm tổng kết (Chuyên cần 10%, Giữa kỳ 30%, Cuối kỳ 60%)
+def tinh_tong_ket(row):
+    return round(
+        row["Chuyên cần"] * 0.1
+        + row["Giữa kỳ"] * 0.3
+        + row["Cuối kỳ"] * 0.6,
+        2,
+    )
+
+
+# Hàm xếp loại
+def xep_loai(diem):
+    if diem >= 8.5:
+        return "Giỏi"
+    elif diem >= 7.0:
+        return "Khá"
+    elif diem >= 5.0:
+        return "Trung bình"
+    else:
+        return "Yếu"
+
+
+# Thêm các cột Tổng kết và Xếp loại vào DataFrame
+df["Tổng kết"] = df.apply(tinh_tong_ket, axis=1)
+df["Xếp loại"] = df["Tổng kết"].apply(xep_loai)
+
+# --- GIAO DIỆN STREAMLIT ---
+
+# Tiêu đề ứng dụng
+st.title("QUẢN LÝ ĐIỂM SINH VIÊN")
+st.markdown("---")
+
+# Hiển thị bảng điểm của 10 sinh viên
+st.subheader("📋 Bảng điểm chi tiết của sinh viên")
+st.dataframe(df, use_container_width=True)
+
+# Các thống kê chung
+st.markdown("---")
+st.subheader("📊 Thống kê chung của lớp")
+
+# 1. Điểm trung bình của lớp
+dtb_lop = round(df["Tổng kết"].mean(), 2)
+st.metric(label="Điểm trung bình toàn lớp", value=dtb_lop)
+
+# 2. Sinh viên cao nhất và thấp nhất
+sv_cao_nhat = df.loc[df["Tổng kết"].idxmax()]
+sv_thap_nhat = df.loc[df["Tổng kết"].idxmin()]
+
+col1, col2 = st.columns(2)
+with col1:
+    st.info(
+        f"**Điểm tổng kết cao nhất:**\n\n"
+        f"- Họ tên: {sv_cao_nhat['Họ tên']}\n"
+        f"- Điểm: {sv_cao_nhat['Tổng kết']}"
+    )
+with col2:
+    st.warning(
+        f"**Điểm tổng kết thấp nhất:**\n\n"
+        f"- Họ tên: {sv_thap_nhat['Họ tên']}\n"
+        f"- Điểm: {sv_thap_nhat['Tổng kết']}"
+    )
+
+# 3. Số sinh viên đạt (Điểm tổng kết >= 5.0)
+so_sv_dat = len(df[df["Tổng kết"] >= 5.0])
+st.success(
+    f"**Số sinh viên đạt (Điểm tổng kết $\\ge 5.0$):** {so_sv_dat}/10 sinh viên"
+)
+
+# --- TRA CỨU THEO SINH VIÊN ---
+st.markdown("---")
+st.subheader("🔍 Tra cứu thông tin sinh viên")
+
+# Tạo danh sách lựa chọn (Hiển thị tên kèm MSSV để dễ phân biệt)
+danh_sach_chon = df["Họ tên"] + " (" + df["MSSV"] + ")"
+sinh_vien_chon = st.selectbox(
+    "Chọn sinh viên để xem chi tiết:", danh_sach_chon
+)
+
+# Lấy ra sinh viên được chọn
+if sinh_vien_chon:
+    # Lọc ra dòng dữ liệu ứng với sinh viên được chọn
+    index_chon = danh_sach_chon[danh_sach_chon == sinh_vien_chon].index[0]
+    sv_info = df.loc[index_chon]
+
+    # Hiển thị thông tin điểm chi tiết
+    col_a, col_b, col_c, col_d, col_e = st.columns(5)
+    col_a.metric("Chuyên cần", sv_info["Chuyên cần"])
+    col_b.metric("Giữa kỳ", sv_info["Giữa kỳ"])
+    col_c.metric("Cuối kỳ", sv_info["Cuối kỳ"])
+    col_d.metric("Tổng kết", sv_info["Tổng kết"])
+    col_e.metric("Xếp loại", sv_info["Xếp loại"])
+
+# --- BIỂU ĐỒ CỘT ĐIỂM TỔNG KẾT ---
+st.markdown("---")
+st.subheader("📈 Biểu đồ cột điểm tổng kết của 10 sinh viên")
+
+# Chuẩn bị dữ liệu cho biểu đồ (Đặt Họ tên làm index để vẽ biểu đồ cột)
+chart_data = df.set_index("Họ tên")[["Tổng kết"]]
+st.bar_chart(chart_data)
+
+# --- CHÂN TRANG (FOOTER) ---
+st.markdown("---")
+st.markdown(
+    "<p style='text-align: center; color: gray; font-size: 12px;'>"
+    "Người tạo ứng dụng: Nguyễn Văn A — MSSV: 12345678"
+    "</p>",
+    unsafe_allow_html=True,
+)
